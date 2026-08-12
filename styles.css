@@ -23,8 +23,8 @@ button { font: inherit; color: inherit; }
   height: 57px;
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding: 5px 14px 0;
+  gap: 8px;
+  padding: 5px 9px 0;
   color: #0b467d;
 }
 
@@ -35,10 +35,33 @@ button { font: inherit; color: inherit; }
   border-radius: 9px;
   box-shadow: 0 4px 10px rgb(17 103 177 / 25%);
 }
-.titlebar h1 { margin: 0; font-size: 20px; font-weight: 600; }
+.titlebar h1 { margin: 0; font-size: 18px; font-weight: 600; white-space: nowrap; }
+
+.unit-toggle {
+  margin-left: auto;
+  padding: 6px 8px;
+  border: 2px solid #1281ce;
+  border-radius: 999px;
+  background: #fff;
+  color: #075caa;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 7px rgb(10 105 180 / 18%);
+}
+
+.unit-toggle:hover { background: #e1f1ff; }
+.unit-toggle[aria-pressed="true"] {
+  border-color: #087340;
+  background: linear-gradient(135deg, #18a860, #087a43);
+  color: #fff;
+  box-shadow: 0 3px 9px rgb(4 119 63 / 32%);
+}
+.unit-toggle:focus-visible { outline: 2px solid #075caa; outline-offset: 2px; }
 
 .paste-button {
-  margin-left: auto;
   padding: 6px 12px;
   border: 1px solid #78b4e6;
   border-radius: 8px;
@@ -109,6 +132,14 @@ button { font: inherit; color: inherit; }
 
 .result.compact { font-size: 32px; }
 .result.tiny { font-size: 24px; }
+
+.result .group-separator {
+  color: #d04a18;
+  font-size: .82em;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-shadow: 0 0 1px rgb(208 74 24 / 25%);
+}
 
 .memory {
   height: 38px;
