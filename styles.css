@@ -65,7 +65,37 @@ button { font: inherit; color: inherit; }
   font-weight: 600;
 }
 
-.memory span:first-child, .memory span:nth-child(2) { color: #999; }
+.memory button {
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.memory button:hover { background: #e5e5e5; }
+.memory button:focus-visible { outline: 2px solid #0067c0; outline-offset: -2px; }
+.memory button[aria-disabled="true"] { color: #999; cursor: default; }
+.memory button[aria-disabled="true"]:hover { background: transparent; }
+
+.memory-panel {
+  position: fixed;
+  z-index: 8;
+  top: 195px;
+  right: 6px;
+  min-width: 150px;
+  padding: 12px;
+  border: 1px solid #d5d5d5;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
+  text-align: right;
+  font-size: 18px;
+  font-weight: 600;
+}
 
 .keypad {
   display: grid;

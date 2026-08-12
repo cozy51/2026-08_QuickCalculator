@@ -18,14 +18,15 @@
         <div id="result" class="result">0</div>
       </section>
 
-      <div class="memory" aria-hidden="true">
-        <span data-tooltip="メモリに保存した数値をクリアします">MC</span>
-        <span data-tooltip="メモリに保存した数値を表示します">MR</span>
-        <span data-tooltip="表示中の数値をメモリの数値に足します">M+</span>
-        <span data-tooltip="表示中の数値をメモリの数値から引きます">M−</span>
-        <span data-tooltip="表示中の数値をメモリに保存します">MS</span>
-        <span data-tooltip="メモリに保存した数値の一覧を表示します">M⌄</span>
+      <div class="memory" aria-label="メモリ機能">
+        <button data-memory="clear" data-tooltip="Memory Clear：メモリに保存している数値を消します" aria-disabled="true">MC</button>
+        <button data-memory="recall" data-tooltip="Memory Recall：メモリに保存している数値を表示欄へ呼び出します" aria-disabled="true">MR</button>
+        <button data-memory="add" data-tooltip="Memory Add：現在表示している数値をメモリの数値に足します">M+</button>
+        <button data-memory="subtract" data-tooltip="Memory Subtract：現在表示している数値をメモリの数値から引きます">M−</button>
+        <button data-memory="store" data-tooltip="Memory Store：現在表示している数値をメモリに保存します">MS</button>
+        <button data-memory="list" data-tooltip="Memory List：メモリに保存している数値を確認します" aria-disabled="true">M▼</button>
       </div>
+      <div id="memory-panel" class="memory-panel" aria-live="polite" hidden></div>
 
       <section class="keypad" aria-label="電卓のキー">
         <button data-action="percent" data-tooltip="入力した数値をパーセントとして扱います">%</button>

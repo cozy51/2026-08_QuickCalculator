@@ -3,12 +3,15 @@
 const resultDisplay = document.querySelector("#result");
 const expressionDisplay = document.querySelector("#expression");
 const tooltip = document.querySelector("#tooltip");
+const memoryPanel = document.querySelector("#memory-panel");
+const memoryButtons = document.querySelectorAll("[data-memory]");
 
 let displayValue = "0";
 let storedValue = null;
 let pendingOperator = null;
 let waitingForOperand = false;
 let justCalculated = false;
+let memoryValue = null;
 
 const operatorSymbols = { "+": "+", "-": "−", "*": "×", "/": "÷" };
 
@@ -144,6 +147,44 @@ document.querySelector(".keypad").addEventListener("click", (event) => {
   else runAction(button.dataset.action);
 });
 
+function updateMemoryButtons() {
+  const memoryIsEmpty = memoryValue === null;
+  memoryButtons.forEach((button) => {
+    if (["clear", "recall", "list"].includes(button.dataset.memory)) {
+      button.setAttribute("aria-disabled", memoryIsEmpty.toString());
+    }
+  });
+  if (memoryIsEmpty) memoryPanel.hidden = true;
+}
+
+function useMemory(action) {
+  if (displayValue === "エラー") return;
+  const currentValue = Number(displayValue);
+
+  if (action === "clear") memoryValue = null;
+  if (action === "store") memoryValue = currentValue;
+  if (action === "add") memoryValue = (memoryValue ?? 0) + currentValue;
+  if (action === "subtract") memoryValue = (memoryValue ?? 0) - currentValue;
+  if (action === "recall" && memoryValue !== null) {
+    displayValue = formatNumber(memoryValue);
+    waitingForOperand = false;
+    justCalculated = false;
+    updateDisplay();
+  }
+  if (action === "list" && memoryValue !== null) {
+    memoryPanel.textContent = formatNumber(memoryValue);
+    memoryPanel.hidden = !memoryPanel.hidden;
+  } else if (action !== "list") {
+    memoryPanel.hidden = true;
+  }
+  updateMemoryButtons();
+}
+
+document.querySelector(".memory").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-memory]");
+  if (button?.getAttribute("aria-disabled") !== "true") useMemory(button.dataset.memory);
+});
+
 function showTooltip(target) {
   tooltip.textContent = target.dataset.tooltip;
   tooltip.classList.add("visible");
@@ -208,3 +249,4 @@ document.addEventListener("keydown", (event) => {
 });
 
 updateDisplay();
+updateMemoryButtons();
