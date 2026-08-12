@@ -29,16 +29,11 @@ button { font: inherit; color: inherit; }
 }
 
 .app-icon {
-  display: grid;
+  display: block;
   width: 30px;
   height: 30px;
-  place-items: center;
   border-radius: 9px;
-  background: linear-gradient(135deg, #1687dc, #075caa);
-  color: #fff;
   box-shadow: 0 4px 10px rgb(17 103 177 / 25%);
-  font-size: 18px;
-  line-height: 1;
 }
 .titlebar h1 { margin: 0; font-size: 20px; font-weight: 600; }
 
