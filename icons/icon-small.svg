@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Quick Calculator">
+  <!-- Simplified variant for 16/24/32px: all edges sit on the 8px grid so they
+       land on whole pixels when scaled down, keeping small sizes crisp. -->
+  <defs>
+    <linearGradient id="qcs-body" x1="0" y1="0" x2=".85" y2="1">
+      <stop offset="0" stop-color="#37a8ee"/>
+      <stop offset="1" stop-color="#0a57a4"/>
+    </linearGradient>
+    <linearGradient id="qcs-accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd66b"/>
+      <stop offset="1" stop-color="#f5a623"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="128" height="128" rx="24" fill="url(#qcs-body)"/>
+
+  <rect x="24" y="16" width="80" height="24" rx="8" fill="#fff"/>
+
+  <g fill="#fff">
+    <rect x="24" y="56" width="24" height="24" rx="7"/>
+    <rect x="56" y="56" width="24" height="24" rx="7"/>
+    <rect x="24" y="88" width="24" height="24" rx="7"/>
+    <rect x="56" y="88" width="24" height="24" rx="7"/>
+  </g>
+
+  <rect x="88" y="56" width="16" height="56" rx="7" fill="url(#qcs-accent)"/>
+</svg>
