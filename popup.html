@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Calculator</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="calculator" aria-label="電卓">
+      <header class="titlebar">
+        <span class="app-icon" aria-hidden="true">▦</span>
+        <h1>標準</h1>
+      </header>
+
+      <section class="display" aria-live="polite" aria-atomic="true">
+        <div id="expression" class="expression">&nbsp;</div>
+        <button id="result" class="result" data-copy-result aria-label="表示中の結果をコピー">0</button>
+      </section>
+
+      <div class="memory" aria-label="メモリ機能">
+        <button data-memory="clear" data-tooltip="Memory Clear：メモリに保存している数値を消します" aria-disabled="true">MC</button>
+        <button data-memory="recall" data-tooltip="Memory Recall：メモリに保存している数値を表示欄へ呼び出します" aria-disabled="true">MR</button>
+        <button data-memory="add" data-tooltip="Memory Add：現在表示している数値をメモリの数値に足します">M+</button>
+        <button data-memory="subtract" data-tooltip="Memory Subtract：現在表示している数値をメモリの数値から引きます">M−</button>
+        <button data-memory="store" data-tooltip="Memory Store：現在表示している数値をメモリに保存します">MS</button>
+        <button data-memory="list" data-tooltip="Memory List：メモリに保存している数値を確認します" aria-disabled="true">M▼</button>
+      </div>
+      <div id="memory-panel" class="memory-panel" aria-live="polite" hidden></div>
+
+      <section class="keypad" aria-label="電卓のキー">
+        <button data-action="percent" data-tooltip="入力した数値をパーセントとして扱います">%</button>
+        <button data-action="ce" data-tooltip="現在入力している数値だけをクリアします">CE</button>
+        <button data-action="clear" data-tooltip="計算内容をすべてクリアします">C</button>
+        <button data-action="backspace" data-tooltip="最後に入力した1桁を削除します" aria-label="1文字削除">⌫</button>
+
+        <button data-action="reciprocal" data-tooltip="入力した数値の逆数を求めます"><span class="fraction"><span>1</span><span>x</span></span></button>
+        <button data-action="square" data-tooltip="入力した数値を2乗します">x²</button>
+        <button data-action="sqrt" data-tooltip="入力した数値の平方根を求めます">√x</button>
+        <button class="operator" data-operator="/" data-tooltip="割り算をします">÷</button>
+
+        <button class="number" data-number="7">7</button>
+        <button class="number" data-number="8">8</button>
+        <button class="number" data-number="9">9</button>
+        <button class="operator" data-operator="*" data-tooltip="掛け算をします">×</button>
+
+        <button class="number" data-number="4">4</button>
+        <button class="number" data-number="5">5</button>
+        <button class="number" data-number="6">6</button>
+        <button class="operator" data-operator="-" data-tooltip="引き算をします">−</button>
+
+        <button class="number" data-number="1">1</button>
+        <button class="number" data-number="2">2</button>
+        <button class="number" data-number="3">3</button>
+        <button class="operator" data-operator="+" data-tooltip="足し算をします">＋</button>
+
+        <button class="number" data-action="sign" data-tooltip="数値のプラスとマイナスを切り替えます">⁺/₋</button>
+        <button class="number" data-number="0">0</button>
+        <button class="number" data-action="decimal" data-tooltip="小数を入力します">.</button>
+        <button class="equals" data-action="equals" data-tooltip="計算結果を表示します">=</button>
+      </section>
+      <div id="tooltip" class="tooltip" role="tooltip"></div>
+    </main>
+    <script src="calculator.js"></script>
+  </body>
+</html>
