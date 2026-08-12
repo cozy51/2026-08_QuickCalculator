@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Quick Calculator",
+  "version": "1.0.0",
+  "description": "Windowsの標準電卓風に使える、シンプルな電卓です。",
+  "action": {
+    "default_title": "Quick Calculator",
+    "default_popup": "popup.html"
+  }
+}
