@@ -145,6 +145,7 @@ document.querySelector(".keypad").addEventListener("click", (event) => {
   if (button.dataset.number) inputDigit(button.dataset.number);
   else if (button.dataset.operator) chooseOperator(button.dataset.operator);
   else runAction(button.dataset.action);
+  if (button.dataset.tooltip) showTooltip(button);
 });
 
 function updateMemoryButtons() {
@@ -182,11 +183,67 @@ function useMemory(action) {
 
 document.querySelector(".memory").addEventListener("click", (event) => {
   const button = event.target.closest("[data-memory]");
-  if (button?.getAttribute("aria-disabled") !== "true") useMemory(button.dataset.memory);
+  if (button?.getAttribute("aria-disabled") !== "true") {
+    useMemory(button.dataset.memory);
+    showTooltip(button);
+  }
 });
 
+function previewBackspace() {
+  if (waitingForOperand || justCalculated || displayValue === "エラー") return displayValue;
+  const shortened = displayValue.length > 1 ? displayValue.slice(0, -1) : "0";
+  return shortened === "-" ? "0" : shortened;
+}
+
+function previewAction(action) {
+  const value = Number(displayValue);
+  if (displayValue === "エラー") return "エラーをクリアしてから使用できます";
+  if (action === "percent") return formatNumber(storedValue !== null ? storedValue * value / 100 : value / 100);
+  if (action === "ce" || action === "clear") return "0";
+  if (action === "backspace") return previewBackspace();
+  if (action === "reciprocal") return formatNumber(value === 0 ? NaN : 1 / value);
+  if (action === "square") return formatNumber(value * value);
+  if (action === "sqrt") return formatNumber(value < 0 ? NaN : Math.sqrt(value));
+  if (action === "sign") return formatNumber(-value);
+  if (action === "decimal") {
+    if (waitingForOperand || justCalculated) return "0.";
+    return displayValue.includes(".") ? displayValue : `${displayValue}.`;
+  }
+  if (action === "equals") {
+    if (!pendingOperator) return "演算子を選ぶと計算結果を確認できます";
+    return formatNumber(calculate(storedValue, value, pendingOperator));
+  }
+  return displayValue;
+}
+
+function tooltipText(target) {
+  const explanation = target.dataset.tooltip;
+  const memoryAction = target.dataset.memory;
+  if (memoryAction) {
+    const saved = memoryValue === null ? "未保存" : formatNumber(memoryValue);
+    let result = saved;
+    if (memoryAction === "clear") result = "未保存";
+    if (memoryAction === "store") result = displayValue;
+    if (memoryAction === "add") result = formatNumber((memoryValue ?? 0) + Number(displayValue));
+    if (memoryAction === "subtract") result = formatNumber((memoryValue ?? 0) - Number(displayValue));
+    if (memoryAction === "recall" && memoryValue === null) result = "呼び出せる数値はありません";
+    if (memoryAction === "list" && memoryValue === null) result = "表示できる数値はありません";
+    return `${explanation}\n現在のメモリ：${saved}\n押した後：${result}`;
+  }
+
+  if (target.dataset.operator) {
+    const symbol = operatorSymbols[target.dataset.operator];
+    const left = pendingOperator && !waitingForOperand
+      ? formatNumber(calculate(storedValue, Number(displayValue), pendingOperator))
+      : displayValue;
+    return `${explanation}\n押した後：${left} ${symbol} …`;
+  }
+
+  return `${explanation}\n押した後の表示：${previewAction(target.dataset.action)}`;
+}
+
 function showTooltip(target) {
-  tooltip.textContent = target.dataset.tooltip;
+  tooltip.textContent = tooltipText(target);
   tooltip.classList.add("visible");
 
   const targetRect = target.getBoundingClientRect();
