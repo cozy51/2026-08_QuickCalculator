@@ -217,6 +217,9 @@ function previewAction(action) {
 }
 
 function tooltipText(target) {
+  if (target.dataset.copyResult !== undefined) {
+    return `結果をコピー：${displayValue}\nクリックするとクリップボードへコピーします`;
+  }
   const explanation = target.dataset.tooltip;
   const memoryAction = target.dataset.memory;
   if (memoryAction) {
@@ -265,30 +268,60 @@ function showTooltip(target) {
   tooltip.style.top = `${Math.max(top, edge)}px`;
 }
 
+async function copyResult() {
+  if (displayValue === "エラー") return;
+  let copied = false;
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(displayValue);
+      copied = true;
+    } catch {
+      copied = false;
+    }
+  }
+  if (!copied) {
+    const input = document.createElement("textarea");
+    input.value = displayValue;
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.append(input);
+    input.select();
+    copied = document.execCommand("copy");
+    input.remove();
+  }
+  tooltip.textContent = copied
+    ? `コピーしました：${displayValue}`
+    : "コピーできませんでした";
+  tooltip.classList.add("visible");
+}
+
+resultDisplay.addEventListener("click", copyResult);
+
 function hideTooltip() {
   tooltip.classList.remove("visible");
 }
 
 document.addEventListener("mouseover", (event) => {
-  const target = event.target.closest("[data-tooltip]");
+  const target = event.target.closest("[data-tooltip], [data-copy-result]");
   if (target) showTooltip(target);
 });
 
 document.addEventListener("mouseout", (event) => {
-  const target = event.target.closest("[data-tooltip]");
+  const target = event.target.closest("[data-tooltip], [data-copy-result]");
   if (target && !target.contains(event.relatedTarget)) hideTooltip();
 });
 
 document.addEventListener("focusin", (event) => {
-  if (event.target.matches("[data-tooltip]")) showTooltip(event.target);
+  if (event.target.matches("[data-tooltip], [data-copy-result]")) showTooltip(event.target);
 });
 
 document.addEventListener("focusout", (event) => {
-  if (event.target.matches("[data-tooltip]")) hideTooltip();
+  if (event.target.matches("[data-tooltip], [data-copy-result]")) hideTooltip();
 });
 
 document.addEventListener("keydown", (event) => {
   const key = event.key;
+  if (event.target === resultDisplay && (key === "Enter" || key === " ")) return;
   let selector;
   if (/^[0-9]$/.test(key)) { inputDigit(key); selector = `[data-number="${key}"]`; }
   else if (["+", "-", "*", "/"].includes(key)) { chooseOperator(key); selector = `[data-operator="${key}"]`; }
