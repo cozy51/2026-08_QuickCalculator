@@ -2,6 +2,7 @@
 
 const resultDisplay = document.querySelector("#result");
 const expressionDisplay = document.querySelector("#expression");
+const tooltip = document.querySelector("#tooltip");
 
 let displayValue = "0";
 let storedValue = null;
@@ -141,6 +142,51 @@ document.querySelector(".keypad").addEventListener("click", (event) => {
   if (button.dataset.number) inputDigit(button.dataset.number);
   else if (button.dataset.operator) chooseOperator(button.dataset.operator);
   else runAction(button.dataset.action);
+});
+
+function showTooltip(target) {
+  tooltip.textContent = target.dataset.tooltip;
+  tooltip.classList.add("visible");
+
+  const targetRect = target.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const gap = 8;
+  const edge = 6;
+  const centeredLeft = targetRect.left + (targetRect.width - tooltipRect.width) / 2;
+  const left = Math.min(
+    Math.max(centeredLeft, edge),
+    window.innerWidth - tooltipRect.width - edge
+  );
+  const above = targetRect.top - tooltipRect.height - gap;
+  const below = targetRect.bottom + gap;
+  const top = above >= edge
+    ? above
+    : Math.min(below, window.innerHeight - tooltipRect.height - edge);
+
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${Math.max(top, edge)}px`;
+}
+
+function hideTooltip() {
+  tooltip.classList.remove("visible");
+}
+
+document.addEventListener("mouseover", (event) => {
+  const target = event.target.closest("[data-tooltip]");
+  if (target) showTooltip(target);
+});
+
+document.addEventListener("mouseout", (event) => {
+  const target = event.target.closest("[data-tooltip]");
+  if (target && !target.contains(event.relatedTarget)) hideTooltip();
+});
+
+document.addEventListener("focusin", (event) => {
+  if (event.target.matches("[data-tooltip]")) showTooltip(event.target);
+});
+
+document.addEventListener("focusout", (event) => {
+  if (event.target.matches("[data-tooltip]")) hideTooltip();
 });
 
 document.addEventListener("keydown", (event) => {
