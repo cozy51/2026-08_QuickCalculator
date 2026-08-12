@@ -5,6 +5,8 @@ const expressionDisplay = document.querySelector("#expression");
 const tooltip = document.querySelector("#tooltip");
 const memoryPanel = document.querySelector("#memory-panel");
 const memoryButtons = document.querySelectorAll("[data-memory]");
+const magnitudeDisplay = document.querySelector("#magnitude");
+const pasteButton = document.querySelector("#paste");
 
 let displayValue = "0";
 let storedValue = null;
@@ -14,6 +16,7 @@ let justCalculated = false;
 let memoryValue = null;
 
 const operatorSymbols = { "+": "+", "-": "−", "*": "×", "/": "÷" };
+const stateKey = "quickCalculatorState";
 
 function formatNumber(value) {
   if (!Number.isFinite(value)) return "エラー";
@@ -28,6 +31,61 @@ function updateDisplay() {
   resultDisplay.textContent = displayValue;
   resultDisplay.classList.toggle("compact", displayValue.length > 12);
   resultDisplay.classList.toggle("tiny", displayValue.length > 17);
+  magnitudeDisplay.textContent = approximateMagnitude(displayValue);
+  saveState();
+}
+
+function approximateMagnitude(value) {
+  const number = Number(value);
+  const absolute = Math.abs(number);
+  if (!Number.isFinite(number) || absolute < 10000) return "";
+
+  const japaneseUnits = [
+    { size: 1e12, label: "兆" },
+    { size: 1e8, label: "億" },
+    { size: 1e4, label: "万" }
+  ];
+  const englishUnits = [
+    { size: 1e12, label: "trillion" },
+    { size: 1e9, label: "billion" },
+    { size: 1e6, label: "million" },
+    { size: 1e3, label: "thousand" }
+  ];
+  const japanese = japaneseUnits.find((unit) => absolute >= unit.size);
+  const english = englishUnits.find((unit) => absolute >= unit.size);
+  const sign = number < 0 ? "−" : "";
+  const japaneseValue = Number((absolute / japanese.size).toPrecision(3));
+  const englishValue = Number((absolute / english.size).toPrecision(4));
+  return `約${sign}${japaneseValue}${japanese.label} (${sign}${englishValue} ${english.label})`;
+}
+
+function saveState() {
+  const state = {
+    displayValue,
+    storedValue,
+    pendingOperator,
+    waitingForOperand,
+    justCalculated,
+    memoryValue,
+    expression: expressionDisplay.textContent
+  };
+  localStorage.setItem(stateKey, JSON.stringify(state));
+}
+
+function restoreState() {
+  try {
+    const state = JSON.parse(localStorage.getItem(stateKey));
+    if (!state || typeof state.displayValue !== "string") return;
+    displayValue = state.displayValue;
+    storedValue = typeof state.storedValue === "number" ? state.storedValue : null;
+    pendingOperator = Object.hasOwn(operatorSymbols, state.pendingOperator) ? state.pendingOperator : null;
+    waitingForOperand = Boolean(state.waitingForOperand);
+    justCalculated = Boolean(state.justCalculated);
+    memoryValue = typeof state.memoryValue === "number" ? state.memoryValue : null;
+    expressionDisplay.textContent = state.expression || "\u00a0";
+  } catch {
+    localStorage.removeItem(stateKey);
+  }
 }
 
 function resetOnError() {
@@ -81,6 +139,7 @@ function chooseOperator(operator) {
   waitingForOperand = true;
   justCalculated = false;
   expressionDisplay.textContent = `${formatNumber(storedValue)} ${operatorSymbols[operator]}`;
+  saveState();
 }
 
 function equals() {
@@ -156,6 +215,7 @@ function updateMemoryButtons() {
     }
   });
   if (memoryIsEmpty) memoryPanel.hidden = true;
+  saveState();
 }
 
 function useMemory(action) {
@@ -249,6 +309,10 @@ function showTooltip(target) {
   tooltip.textContent = tooltipText(target);
   tooltip.classList.add("visible");
 
+  showTooltipPosition(target);
+}
+
+function showTooltipPosition(target) {
   const targetRect = target.getBoundingClientRect();
   const tooltipRect = tooltip.getBoundingClientRect();
   const gap = 8;
@@ -297,6 +361,34 @@ async function copyResult() {
 
 resultDisplay.addEventListener("click", copyResult);
 
+function parseClipboardNumber(text) {
+  const normalized = text.trim().replaceAll(",", "");
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(normalized)) return null;
+  const number = Number(normalized);
+  return Number.isFinite(number) ? formatNumber(number) : null;
+}
+
+async function pasteNumber() {
+  try {
+    const pastedValue = parseClipboardNumber(await navigator.clipboard.readText());
+    if (pastedValue === null) {
+      tooltip.textContent = "クリップボードに貼り付け可能な数値がありません";
+    } else {
+      displayValue = pastedValue;
+      waitingForOperand = false;
+      justCalculated = false;
+      updateDisplay();
+      tooltip.textContent = `貼り付けました：${pastedValue}`;
+    }
+  } catch {
+    tooltip.textContent = "クリップボードを読み取れませんでした";
+  }
+  tooltip.classList.add("visible");
+  showTooltipPosition(pasteButton);
+}
+
+pasteButton.addEventListener("click", pasteNumber);
+
 function hideTooltip() {
   tooltip.classList.remove("visible");
 }
@@ -338,5 +430,6 @@ document.addEventListener("keydown", (event) => {
   setTimeout(() => button?.classList.remove("pressed"), 100);
 });
 
+restoreState();
 updateDisplay();
 updateMemoryButtons();
