@@ -7,6 +7,7 @@ const memoryPanel = document.querySelector("#memory-panel");
 const memoryButtons = document.querySelectorAll("[data-memory]");
 const magnitudeDisplay = document.querySelector("#magnitude");
 const pasteButton = document.querySelector("#paste");
+const millionUnitButton = document.querySelector("#million-unit");
 
 let displayValue = "0";
 let storedValue = null;
@@ -14,6 +15,7 @@ let pendingOperator = null;
 let waitingForOperand = false;
 let justCalculated = false;
 let memoryValue = null;
+let millionUnit = false;
 
 const operatorSymbols = { "+": "+", "-": "−", "*": "×", "/": "÷" };
 const stateKey = "quickCalculatorState";
@@ -28,15 +30,37 @@ function formatNumber(value) {
 }
 
 function updateDisplay() {
-  resultDisplay.textContent = displayValue;
-  resultDisplay.classList.toggle("compact", displayValue.length > 12);
-  resultDisplay.classList.toggle("tiny", displayValue.length > 17);
+  const formattedDisplay = addGroupSeparators(displayValue);
+  resultDisplay.replaceChildren(...formattedDisplay);
+  const visibleLength = resultDisplay.textContent.length;
+  resultDisplay.classList.toggle("compact", visibleLength > 12);
+  resultDisplay.classList.toggle("tiny", visibleLength > 17);
   magnitudeDisplay.textContent = approximateMagnitude(displayValue);
+  millionUnitButton.setAttribute("aria-pressed", millionUnit.toString());
   saveState();
 }
 
+function addGroupSeparators(value) {
+  if (value === "エラー" || /e/i.test(value)) return [document.createTextNode(value)];
+  const [integer, decimal] = value.split(".");
+  const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const parts = grouped.split(",");
+  const nodes = [];
+  parts.forEach((part, index) => {
+    if (index) {
+      const separator = document.createElement("span");
+      separator.className = "group-separator";
+      separator.textContent = ",";
+      nodes.push(separator);
+    }
+    nodes.push(document.createTextNode(part));
+  });
+  if (decimal !== undefined) nodes.push(document.createTextNode(`.${decimal}`));
+  return nodes;
+}
+
 function approximateMagnitude(value) {
-  const number = Number(value);
+  const number = Number(value) * (millionUnit ? 1e6 : 1);
   const absolute = Math.abs(number);
   if (!Number.isFinite(number) || absolute < 10000) return "";
 
@@ -67,6 +91,7 @@ function saveState() {
     waitingForOperand,
     justCalculated,
     memoryValue,
+    millionUnit,
     expression: expressionDisplay.textContent
   };
   localStorage.setItem(stateKey, JSON.stringify(state));
@@ -82,6 +107,7 @@ function restoreState() {
     waitingForOperand = Boolean(state.waitingForOperand);
     justCalculated = Boolean(state.justCalculated);
     memoryValue = typeof state.memoryValue === "number" ? state.memoryValue : null;
+    millionUnit = Boolean(state.millionUnit);
     expressionDisplay.textContent = state.expression || "\u00a0";
   } catch {
     localStorage.removeItem(stateKey);
@@ -280,6 +306,10 @@ function tooltipText(target) {
   if (target.dataset.copyResult !== undefined) {
     return `結果をコピー：${displayValue}\nクリックするとクリップボードへコピーします`;
   }
+  if (target === millionUnitButton) {
+    const nextState = millionUnit ? "通常単位" : "百万円単位";
+    return `${target.dataset.tooltip}\n現在：${millionUnit ? "百万円単位" : "通常単位"}\nクリック後：${nextState}`;
+  }
   const explanation = target.dataset.tooltip;
   const memoryAction = target.dataset.memory;
   if (memoryAction) {
@@ -388,6 +418,12 @@ async function pasteNumber() {
 }
 
 pasteButton.addEventListener("click", pasteNumber);
+
+millionUnitButton.addEventListener("click", () => {
+  millionUnit = !millionUnit;
+  updateDisplay();
+  showTooltip(millionUnitButton);
+});
 
 function hideTooltip() {
   tooltip.classList.remove("visible");
