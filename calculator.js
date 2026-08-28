@@ -17,6 +17,25 @@ let justCalculated = false;
 let memoryValue = null;
 let millionUnit = false;
 let expressionTrail = "";
+let audioContext = null;
+
+function playClickSound() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  audioContext ??= new AudioContextClass();
+  if (audioContext.state === "suspended") audioContext.resume();
+  const now = audioContext.currentTime;
+  const oscillator = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  oscillator.type = "square";
+  oscillator.frequency.setValueAtTime(1500, now);
+  gain.gain.setValueAtTime(0.12, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
+  oscillator.connect(gain);
+  gain.connect(audioContext.destination);
+  oscillator.start(now);
+  oscillator.stop(now + 0.04);
+}
 
 const operatorSymbols = { "+": "+", "-": "−", "*": "×", "/": "÷" };
 const stateKey = "quickCalculatorState";
@@ -455,6 +474,12 @@ document.addEventListener("focusout", (event) => {
   if (event.target.matches("[data-tooltip], [data-copy-result]")) hideTooltip();
 });
 
+document.addEventListener("pointerdown", (event) => {
+  const button = event.target.closest("button");
+  if (!button || button.getAttribute("aria-disabled") === "true") return;
+  playClickSound();
+});
+
 document.addEventListener("keydown", (event) => {
   const key = event.key;
   if (event.target === resultDisplay && (key === "Enter" || key === " ")) return;
@@ -469,6 +494,7 @@ document.addEventListener("keydown", (event) => {
   else if (key === "%") { unary("percent"); selector = '[data-action="percent"]'; }
   else return;
   event.preventDefault();
+  playClickSound();
   const button = document.querySelector(selector);
   button?.classList.add("pressed");
   setTimeout(() => button?.classList.remove("pressed"), 100);
