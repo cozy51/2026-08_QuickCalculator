@@ -16,6 +16,7 @@ let waitingForOperand = false;
 let justCalculated = false;
 let memoryValue = null;
 let millionUnit = false;
+let expressionTrail = "";
 
 const operatorSymbols = { "+": "+", "-": "−", "*": "×", "/": "÷" };
 const stateKey = "quickCalculatorState";
@@ -92,7 +93,8 @@ function saveState() {
     justCalculated,
     memoryValue,
     millionUnit,
-    expression: expressionDisplay.textContent
+    expression: expressionDisplay.textContent,
+    expressionTrail
   };
   localStorage.setItem(stateKey, JSON.stringify(state));
 }
@@ -109,6 +111,7 @@ function restoreState() {
     memoryValue = typeof state.memoryValue === "number" ? state.memoryValue : null;
     millionUnit = Boolean(state.millionUnit);
     expressionDisplay.textContent = state.expression || "\u00a0";
+    expressionTrail = typeof state.expressionTrail === "string" ? state.expressionTrail : "";
   } catch {
     localStorage.removeItem(stateKey);
   }
@@ -155,16 +158,18 @@ function chooseOperator(operator) {
   resetOnError();
   const input = Number(displayValue);
   if (pendingOperator && !waitingForOperand) {
+    expressionTrail += ` ${formatNumber(input)} ${operatorSymbols[operator]}`;
     displayValue = formatNumber(calculate(storedValue, input, pendingOperator));
     storedValue = Number(displayValue);
     updateDisplay();
   } else {
     storedValue = input;
+    expressionTrail = `${formatNumber(storedValue)} ${operatorSymbols[operator]}`;
   }
   pendingOperator = operator;
   waitingForOperand = true;
   justCalculated = false;
-  expressionDisplay.textContent = `${formatNumber(storedValue)} ${operatorSymbols[operator]}`;
+  expressionDisplay.textContent = expressionTrail;
   saveState();
 }
 
@@ -172,12 +177,14 @@ function equals() {
   if (!pendingOperator || displayValue === "エラー") return;
   const right = Number(displayValue);
   const left = storedValue;
+  const trail = expressionTrail || `${formatNumber(left)} ${operatorSymbols[pendingOperator]}`;
   displayValue = formatNumber(calculate(left, right, pendingOperator));
-  expressionDisplay.textContent = `${formatNumber(left)} ${operatorSymbols[pendingOperator]} ${formatNumber(right)} =`;
+  expressionDisplay.textContent = `${trail} ${formatNumber(right)} =`;
   storedValue = null;
   pendingOperator = null;
   waitingForOperand = true;
   justCalculated = true;
+  expressionTrail = "";
   updateDisplay();
 }
 
@@ -187,6 +194,7 @@ function clearAll() {
   pendingOperator = null;
   waitingForOperand = false;
   justCalculated = false;
+  expressionTrail = "";
   expressionDisplay.innerHTML = "&nbsp;";
   updateDisplay();
 }
