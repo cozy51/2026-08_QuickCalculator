@@ -4,6 +4,7 @@ const resultDisplay = document.querySelector("#result");
 const expressionDisplay = document.querySelector("#expression");
 const tooltip = document.querySelector("#tooltip");
 const memoryPanel = document.querySelector("#memory-panel");
+const memorySelect = document.querySelector("#memory-select");
 const memoryButtons = document.querySelectorAll("[data-memory]");
 const magnitudeDisplay = document.querySelector("#magnitude");
 const pasteButton = document.querySelector("#paste");
@@ -13,9 +14,11 @@ let displayValue = "0";
 let tokens = []; // committed expression tokens (numbers, "+","-","*","/","(",")") before the value currently being typed
 let waitingForOperand = false;
 let justCalculated = false;
-let memoryValue = null;
+let memoryEntries = []; // { value: number, time: number } oldest first, newest last
+let selectedMemoryIndex = -1;
 let millionUnit = false;
 let audioContext = null;
+const MEMORY_LIMIT = 10;
 
 function playClickSound() {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -199,7 +202,8 @@ function saveState() {
     tokens,
     waitingForOperand,
     justCalculated,
-    memoryValue,
+    memoryEntries,
+    selectedMemoryIndex,
     millionUnit,
     expression: expressionDisplay.textContent
   };
@@ -216,7 +220,16 @@ function restoreState() {
       : [];
     waitingForOperand = Boolean(state.waitingForOperand);
     justCalculated = Boolean(state.justCalculated);
-    memoryValue = typeof state.memoryValue === "number" ? state.memoryValue : null;
+    memoryEntries = Array.isArray(state.memoryEntries)
+      ? state.memoryEntries
+          .filter((entry) => entry && typeof entry.value === "number" && typeof entry.time === "number")
+          .slice(-MEMORY_LIMIT)
+      : [];
+    selectedMemoryIndex = Number.isInteger(state.selectedMemoryIndex)
+      && state.selectedMemoryIndex >= 0
+      && state.selectedMemoryIndex < memoryEntries.length
+      ? state.selectedMemoryIndex
+      : (memoryEntries.length ? memoryEntries.length - 1 : -1);
     millionUnit = Boolean(state.millionUnit);
     expressionDisplay.textContent = state.expression || " ";
   } catch {
@@ -427,7 +440,7 @@ document.querySelector(".keypad").addEventListener("click", (event) => {
 });
 
 function updateMemoryButtons() {
-  const memoryIsEmpty = memoryValue === null;
+  const memoryIsEmpty = memoryEntries.length === 0;
   memoryButtons.forEach((button) => {
     if (["clear", "recall", "list"].includes(button.dataset.memory)) {
       button.setAttribute("aria-disabled", memoryIsEmpty.toString());
@@ -437,30 +450,73 @@ function updateMemoryButtons() {
   saveState();
 }
 
+function formatMemoryTime(time) {
+  return new Date(time).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function renderMemorySelect() {
+  const optionsNewestFirst = memoryEntries
+    .map((entry, index) => ({ entry, index }))
+    .reverse();
+  memorySelect.replaceChildren(
+    ...optionsNewestFirst.map(({ entry, index }) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = `${formatNumber(entry.value)}（${formatMemoryTime(entry.time)}）`;
+      option.selected = index === selectedMemoryIndex;
+      return option;
+    })
+  );
+}
+
+function addMemoryEntry(value, time) {
+  memoryEntries.push({ value, time });
+  if (memoryEntries.length > MEMORY_LIMIT) memoryEntries.shift();
+  selectedMemoryIndex = memoryEntries.length - 1;
+}
+
 function useMemory(action) {
   if (displayValue === "エラー") return;
   const currentValue = Number(displayValue);
+  const now = Date.now();
 
-  if (action === "clear") memoryValue = null;
-  if (action === "store") memoryValue = currentValue;
-  if (action === "add") memoryValue = (memoryValue ?? 0) + currentValue;
-  if (action === "subtract") memoryValue = (memoryValue ?? 0) - currentValue;
-  if (action === "recall" && memoryValue !== null && canStartOperand()) {
+  if (action === "clear" && selectedMemoryIndex !== -1) {
+    memoryEntries.splice(selectedMemoryIndex, 1);
+    selectedMemoryIndex = memoryEntries.length ? Math.min(selectedMemoryIndex, memoryEntries.length - 1) : -1;
+  }
+  if (action === "store") addMemoryEntry(currentValue, now);
+  if (action === "add") {
+    if (selectedMemoryIndex === -1) addMemoryEntry(currentValue, now);
+    else {
+      memoryEntries[selectedMemoryIndex].value += currentValue;
+      memoryEntries[selectedMemoryIndex].time = now;
+    }
+  }
+  if (action === "subtract") {
+    if (selectedMemoryIndex === -1) addMemoryEntry(-currentValue, now);
+    else {
+      memoryEntries[selectedMemoryIndex].value -= currentValue;
+      memoryEntries[selectedMemoryIndex].time = now;
+    }
+  }
+  if (action === "recall" && selectedMemoryIndex !== -1 && canStartOperand()) {
     if (justCalculated) tokens = [];
-    displayValue = formatNumber(memoryValue);
+    displayValue = formatNumber(memoryEntries[selectedMemoryIndex].value);
     waitingForOperand = false;
     justCalculated = false;
     updateExpressionDisplay();
     updateDisplay();
   }
-  if (action === "list" && memoryValue !== null) {
-    memoryPanel.textContent = formatNumber(memoryValue);
-    memoryPanel.hidden = !memoryPanel.hidden;
-  } else if (action !== "list") {
-    memoryPanel.hidden = true;
-  }
+  if (action === "list") memoryPanel.hidden = !memoryPanel.hidden;
+  else if (memoryEntries.length === 0) memoryPanel.hidden = true;
+  renderMemorySelect();
   updateMemoryButtons();
 }
+
+memorySelect.addEventListener("change", () => {
+  selectedMemoryIndex = Number(memorySelect.value);
+  updateMemoryButtons();
+});
 
 document.querySelector(".memory").addEventListener("click", (event) => {
   const button = event.target.closest("[data-memory]");
@@ -525,15 +581,24 @@ function tooltipText(target) {
   const explanation = target.dataset.tooltip;
   const memoryAction = target.dataset.memory;
   if (memoryAction) {
-    const saved = memoryValue === null ? "未保存" : formatNumber(memoryValue);
-    let result = saved;
-    if (memoryAction === "clear") result = "未保存";
-    if (memoryAction === "store") result = displayValue;
-    if (memoryAction === "add") result = formatNumber((memoryValue ?? 0) + Number(displayValue));
-    if (memoryAction === "subtract") result = formatNumber((memoryValue ?? 0) - Number(displayValue));
-    if (memoryAction === "recall" && memoryValue === null) result = "呼び出せる数値はありません";
-    if (memoryAction === "list" && memoryValue === null) result = "表示できる数値はありません";
-    return `${explanation}\n現在のメモリ：${saved}\n押した後：${result}`;
+    const hasSelection = selectedMemoryIndex !== -1;
+    const selected = hasSelection ? formatNumber(memoryEntries[selectedMemoryIndex].value) : "未保存";
+    let result = selected;
+    if (memoryAction === "clear") result = hasSelection ? "選択中のメモリを削除します" : "選択中のメモリはありません";
+    if (memoryAction === "store") result = `新しいメモリとして保存：${displayValue}`;
+    if (memoryAction === "add") {
+      result = hasSelection
+        ? formatNumber(memoryEntries[selectedMemoryIndex].value + Number(displayValue))
+        : `新しいメモリとして保存：${displayValue}`;
+    }
+    if (memoryAction === "subtract") {
+      result = hasSelection
+        ? formatNumber(memoryEntries[selectedMemoryIndex].value - Number(displayValue))
+        : `新しいメモリとして保存：${formatNumber(-Number(displayValue))}`;
+    }
+    if (memoryAction === "recall" && !hasSelection) result = "呼び出せる数値はありません";
+    if (memoryAction === "list" && memoryEntries.length === 0) result = "表示できる数値はありません";
+    return `${explanation}\n選択中のメモリ：${selected}\n件数：${memoryEntries.length}/${MEMORY_LIMIT}\n押した後：${result}`;
   }
 
   if (target.dataset.operator) {
