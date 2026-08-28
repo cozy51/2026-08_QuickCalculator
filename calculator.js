@@ -10,13 +10,11 @@ const pasteButton = document.querySelector("#paste");
 const millionUnitButton = document.querySelector("#million-unit");
 
 let displayValue = "0";
-let storedValue = null;
-let pendingOperator = null;
+let tokens = []; // committed expression tokens (numbers, "+","-","*","/","(",")") before the value currently being typed
 let waitingForOperand = false;
 let justCalculated = false;
 let memoryValue = null;
 let millionUnit = false;
-let expressionTrail = "";
 let audioContext = null;
 
 function playClickSound() {
@@ -40,6 +38,24 @@ function playClickSound() {
 const operatorSymbols = { "+": "+", "-": "−", "*": "×", "/": "÷" };
 const stateKey = "quickCalculatorState";
 
+function isOperatorToken(token) {
+  return token === "+" || token === "-" || token === "*" || token === "/";
+}
+
+function isNumberToken(token) {
+  return typeof token === "string" && token !== "(" && token !== ")" && !isOperatorToken(token);
+}
+
+function tokensToText(tokenList) {
+  return tokenList
+    .map((token) => {
+      if (isOperatorToken(token)) return operatorSymbols[token];
+      if (token === "(" || token === ")") return token;
+      return formatNumber(Number(token));
+    })
+    .join(" ");
+}
+
 function formatNumber(value) {
   if (!Number.isFinite(value)) return "エラー";
   const magnitude = Math.abs(value);
@@ -58,6 +74,80 @@ function updateDisplay() {
   magnitudeDisplay.textContent = approximateMagnitude(displayValue);
   millionUnitButton.setAttribute("aria-pressed", millionUnit.toString());
   saveState();
+}
+
+function currentEvalTokens() {
+  const evalTokens = [...tokens];
+  if (!waitingForOperand) evalTokens.push(displayValue);
+  return evalTokens;
+}
+
+function updateExpressionDisplay() {
+  expressionDisplay.textContent = tokensToText(currentEvalTokens()) || " ";
+}
+
+function isCompleteForEval(evalTokens) {
+  const last = evalTokens[evalTokens.length - 1];
+  return evalTokens.length > 0 && !isOperatorToken(last) && last !== "(";
+}
+
+function withAutoClosedParens(evalTokens) {
+  let open = 0;
+  for (const token of evalTokens) {
+    if (token === "(") open++;
+    else if (token === ")") open--;
+  }
+  const closed = [...evalTokens];
+  for (let i = 0; i < open; i++) closed.push(")");
+  return closed;
+}
+
+function evaluateTokens(tokenList) {
+  let position = 0;
+  const peek = () => tokenList[position];
+  const consume = () => tokenList[position++];
+
+  function parseExpression() {
+    let value = parseTerm();
+    while (peek() === "+" || peek() === "-") {
+      const operator = consume();
+      value = calculate(value, parseTerm(), operator);
+    }
+    return value;
+  }
+
+  function parseTerm() {
+    let value = parseFactor();
+    while (peek() === "*" || peek() === "/") {
+      const operator = consume();
+      value = calculate(value, parseFactor(), operator);
+    }
+    return value;
+  }
+
+  function parseFactor() {
+    if (peek() === "(") {
+      consume();
+      const value = parseExpression();
+      if (peek() === ")") consume();
+      return value;
+    }
+    return Number(consume());
+  }
+
+  return parseExpression();
+}
+
+function percentBase() {
+  const last = tokens[tokens.length - 1];
+  if (!isOperatorToken(last)) return null;
+  const previous = Number(tokens[tokens.length - 2]);
+  return Number.isNaN(previous) ? null : previous;
+}
+
+function canStartOperand() {
+  const last = tokens[tokens.length - 1];
+  return !(waitingForOperand && !justCalculated && last === ")");
 }
 
 function addGroupSeparators(value) {
@@ -106,14 +196,12 @@ function approximateMagnitude(value) {
 function saveState() {
   const state = {
     displayValue,
-    storedValue,
-    pendingOperator,
+    tokens,
     waitingForOperand,
     justCalculated,
     memoryValue,
     millionUnit,
-    expression: expressionDisplay.textContent,
-    expressionTrail
+    expression: expressionDisplay.textContent
   };
   localStorage.setItem(stateKey, JSON.stringify(state));
 }
@@ -123,14 +211,14 @@ function restoreState() {
     const state = JSON.parse(localStorage.getItem(stateKey));
     if (!state || typeof state.displayValue !== "string") return;
     displayValue = state.displayValue;
-    storedValue = typeof state.storedValue === "number" ? state.storedValue : null;
-    pendingOperator = Object.hasOwn(operatorSymbols, state.pendingOperator) ? state.pendingOperator : null;
+    tokens = Array.isArray(state.tokens)
+      ? state.tokens.filter((token) => typeof token === "string")
+      : [];
     waitingForOperand = Boolean(state.waitingForOperand);
     justCalculated = Boolean(state.justCalculated);
     memoryValue = typeof state.memoryValue === "number" ? state.memoryValue : null;
     millionUnit = Boolean(state.millionUnit);
-    expressionDisplay.textContent = state.expression || "\u00a0";
-    expressionTrail = typeof state.expressionTrail === "string" ? state.expressionTrail : "";
+    expressionDisplay.textContent = state.expression || " ";
   } catch {
     localStorage.removeItem(stateKey);
   }
@@ -142,26 +230,32 @@ function resetOnError() {
 
 function inputDigit(digit) {
   resetOnError();
+  if (!canStartOperand()) return;
   if (waitingForOperand || justCalculated) {
+    if (justCalculated) tokens = [];
     displayValue = digit;
     waitingForOperand = false;
     justCalculated = false;
-    if (storedValue === null) expressionDisplay.innerHTML = "&nbsp;";
+    if (tokens.length === 0) expressionDisplay.innerHTML = "&nbsp;";
   } else if (displayValue === "0") {
     displayValue = digit;
   } else if (displayValue.replace("-", "").replace(".", "").length < 16) {
     displayValue += digit;
   }
+  updateExpressionDisplay();
   updateDisplay();
 }
 
 function inputDecimal() {
   resetOnError();
+  if (!canStartOperand()) return;
   if (waitingForOperand || justCalculated) {
+    if (justCalculated) tokens = [];
     displayValue = "0.";
     waitingForOperand = false;
     justCalculated = false;
   } else if (!displayValue.includes(".")) displayValue += ".";
+  updateExpressionDisplay();
   updateDisplay();
 }
 
@@ -175,55 +269,118 @@ function calculate(left, right, operator) {
 
 function chooseOperator(operator) {
   resetOnError();
-  const input = Number(displayValue);
-  if (pendingOperator && !waitingForOperand) {
-    expressionTrail += ` ${formatNumber(input)} ${operatorSymbols[operator]}`;
-    displayValue = formatNumber(calculate(storedValue, input, pendingOperator));
-    storedValue = Number(displayValue);
-    updateDisplay();
-  } else {
-    storedValue = input;
-    expressionTrail = `${formatNumber(storedValue)} ${operatorSymbols[operator]}`;
+  if (justCalculated) {
+    tokens = [displayValue];
+    justCalculated = false;
+    tokens.push(operator);
+    waitingForOperand = true;
+    updateExpressionDisplay();
+    saveState();
+    return;
   }
-  pendingOperator = operator;
+  const last = tokens[tokens.length - 1];
+  if (!waitingForOperand) {
+    tokens.push(displayValue);
+    tokens.push(operator);
+  } else if (isOperatorToken(last)) {
+    tokens[tokens.length - 1] = operator;
+  } else if (last === ")") {
+    tokens.push(operator);
+  } else {
+    return; // right after "(" or at the very start: no operand to operate on yet
+  }
   waitingForOperand = true;
+  updateExpressionDisplay();
+  saveState();
+}
+
+function openParen() {
+  resetOnError();
+  const last = tokens[tokens.length - 1];
+  if (waitingForOperand && !justCalculated && last === ")") return;
+  if (!waitingForOperand && displayValue !== "0") return;
+  if (justCalculated) tokens = [];
   justCalculated = false;
-  expressionDisplay.textContent = expressionTrail;
+  tokens.push("(");
+  displayValue = "0";
+  waitingForOperand = true;
+  updateExpressionDisplay();
+  saveState();
+}
+
+function closeParen() {
+  resetOnError();
+  const openCount = tokens.filter((token) => token === "(").length
+    - tokens.filter((token) => token === ")").length;
+  if (openCount <= 0) return;
+  const last = tokens[tokens.length - 1];
+  if (waitingForOperand && last !== ")") return; // empty group or trailing operator
+  if (!waitingForOperand) tokens.push(displayValue);
+  tokens.push(")");
+  waitingForOperand = true;
+  updateExpressionDisplay();
   saveState();
 }
 
 function equals() {
-  if (!pendingOperator || displayValue === "エラー") return;
-  const right = Number(displayValue);
-  const left = storedValue;
-  const trail = expressionTrail || `${formatNumber(left)} ${operatorSymbols[pendingOperator]}`;
-  displayValue = formatNumber(calculate(left, right, pendingOperator));
-  expressionDisplay.textContent = `${trail} ${formatNumber(right)} =`;
-  storedValue = null;
-  pendingOperator = null;
+  resetOnError();
+  if (displayValue === "エラー" || tokens.length === 0) return;
+  const evalTokens = currentEvalTokens();
+  if (!isCompleteForEval(evalTokens)) return;
+  const closedTokens = withAutoClosedParens(evalTokens);
+  const trail = tokensToText(closedTokens);
+  let result;
+  try {
+    result = evaluateTokens(closedTokens);
+  } catch {
+    result = NaN;
+  }
+  displayValue = formatNumber(result);
+  expressionDisplay.textContent = `${trail} =`;
+  tokens = [];
   waitingForOperand = true;
   justCalculated = true;
-  expressionTrail = "";
   updateDisplay();
 }
 
 function clearAll() {
   displayValue = "0";
-  storedValue = null;
-  pendingOperator = null;
+  tokens = [];
   waitingForOperand = false;
   justCalculated = false;
-  expressionTrail = "";
   expressionDisplay.innerHTML = "&nbsp;";
   updateDisplay();
 }
 
-function clearEntry() { displayValue = "0"; waitingForOperand = false; updateDisplay(); }
+function clearEntry() {
+  const last = tokens[tokens.length - 1];
+  if (waitingForOperand && last === ")") return;
+  displayValue = "0";
+  waitingForOperand = false;
+  updateExpressionDisplay();
+  updateDisplay();
+}
 
 function backspace() {
-  if (waitingForOperand || justCalculated || displayValue === "エラー") return;
-  displayValue = displayValue.length > 1 ? displayValue.slice(0, -1) : "0";
-  if (displayValue === "-") displayValue = "0";
+  if (displayValue === "エラー") return;
+  if (!waitingForOperand && displayValue !== "0") {
+    displayValue = displayValue.length > 1 ? displayValue.slice(0, -1) : "0";
+    if (displayValue === "-") displayValue = "0";
+    updateExpressionDisplay();
+    updateDisplay();
+    return;
+  }
+  if (justCalculated || tokens.length === 0) return;
+  tokens.pop();
+  const last = tokens[tokens.length - 1];
+  if (isNumberToken(last)) {
+    displayValue = tokens.pop();
+    waitingForOperand = false;
+  } else {
+    displayValue = "0";
+    waitingForOperand = true;
+  }
+  updateExpressionDisplay();
   updateDisplay();
 }
 
@@ -233,7 +390,10 @@ function unary(action) {
   let answer = value;
   let label = displayValue;
   if (action === "sign") answer = -value;
-  if (action === "percent") answer = storedValue !== null ? storedValue * value / 100 : value / 100;
+  if (action === "percent") {
+    const base = percentBase();
+    answer = base !== null ? base * value / 100 : value / 100;
+  }
   if (action === "reciprocal") { answer = value === 0 ? NaN : 1 / value; label = `1/(${displayValue})`; }
   if (action === "square") { answer = value * value; label = `sqr(${displayValue})`; }
   if (action === "sqrt") { answer = value < 0 ? NaN : Math.sqrt(value); label = `√(${displayValue})`; }
@@ -251,11 +411,17 @@ function runAction(action) {
   else unary(action);
 }
 
+function toggleParen(symbol) {
+  if (symbol === "(") openParen();
+  else closeParen();
+}
+
 document.querySelector(".keypad").addEventListener("click", (event) => {
   const button = event.target.closest("button");
   if (!button) return;
   if (button.dataset.number) inputDigit(button.dataset.number);
   else if (button.dataset.operator) chooseOperator(button.dataset.operator);
+  else if (button.dataset.paren) toggleParen(button.dataset.paren);
   else runAction(button.dataset.action);
   if (button.dataset.tooltip) showTooltip(button);
 });
@@ -279,10 +445,12 @@ function useMemory(action) {
   if (action === "store") memoryValue = currentValue;
   if (action === "add") memoryValue = (memoryValue ?? 0) + currentValue;
   if (action === "subtract") memoryValue = (memoryValue ?? 0) - currentValue;
-  if (action === "recall" && memoryValue !== null) {
+  if (action === "recall" && memoryValue !== null && canStartOperand()) {
+    if (justCalculated) tokens = [];
     displayValue = formatNumber(memoryValue);
     waitingForOperand = false;
     justCalculated = false;
+    updateExpressionDisplay();
     updateDisplay();
   }
   if (action === "list" && memoryValue !== null) {
@@ -303,15 +471,24 @@ document.querySelector(".memory").addEventListener("click", (event) => {
 });
 
 function previewBackspace() {
-  if (waitingForOperand || justCalculated || displayValue === "エラー") return displayValue;
-  const shortened = displayValue.length > 1 ? displayValue.slice(0, -1) : "0";
-  return shortened === "-" ? "0" : shortened;
+  if (displayValue === "エラー") return displayValue;
+  if (!waitingForOperand && displayValue !== "0") {
+    const shortened = displayValue.length > 1 ? displayValue.slice(0, -1) : "0";
+    return shortened === "-" ? "0" : shortened;
+  }
+  if (justCalculated || tokens.length === 0) return displayValue;
+  const remaining = tokens.slice(0, -1);
+  const last = remaining[remaining.length - 1];
+  return isNumberToken(last) ? last : "0";
 }
 
 function previewAction(action) {
   const value = Number(displayValue);
   if (displayValue === "エラー") return "エラーをクリアしてから使用できます";
-  if (action === "percent") return formatNumber(storedValue !== null ? storedValue * value / 100 : value / 100);
+  if (action === "percent") {
+    const base = percentBase();
+    return formatNumber(base !== null ? base * value / 100 : value / 100);
+  }
   if (action === "ce" || action === "clear") return "0";
   if (action === "backspace") return previewBackspace();
   if (action === "reciprocal") return formatNumber(value === 0 ? NaN : 1 / value);
@@ -323,8 +500,16 @@ function previewAction(action) {
     return displayValue.includes(".") ? displayValue : `${displayValue}.`;
   }
   if (action === "equals") {
-    if (!pendingOperator) return "演算子を選ぶと計算結果を確認できます";
-    return formatNumber(calculate(storedValue, value, pendingOperator));
+    if (tokens.length === 0) return "演算子を選ぶと計算結果を確認できます";
+    const evalTokens = currentEvalTokens();
+    if (!isCompleteForEval(evalTokens)) return "式を入力すると計算結果を確認できます";
+    let result;
+    try {
+      result = evaluateTokens(withAutoClosedParens(evalTokens));
+    } catch {
+      result = NaN;
+    }
+    return formatNumber(result);
   }
   return displayValue;
 }
@@ -353,10 +538,13 @@ function tooltipText(target) {
 
   if (target.dataset.operator) {
     const symbol = operatorSymbols[target.dataset.operator];
-    const left = pendingOperator && !waitingForOperand
-      ? formatNumber(calculate(storedValue, Number(displayValue), pendingOperator))
-      : displayValue;
-    return `${explanation}\n押した後：${left} ${symbol} …`;
+    const preview = tokensToText(currentEvalTokens());
+    return `${explanation}\n押した後：${preview} ${symbol} …`;
+  }
+
+  if (target.dataset.paren) {
+    const preview = tokensToText([...currentEvalTokens(), target.dataset.paren]);
+    return `${explanation}\n押した後：${preview} …`;
   }
 
   return `${explanation}\n押した後の表示：${previewAction(target.dataset.action)}`;
@@ -430,10 +618,14 @@ async function pasteNumber() {
     const pastedValue = parseClipboardNumber(await navigator.clipboard.readText());
     if (pastedValue === null) {
       tooltip.textContent = "クリップボードに貼り付け可能な数値がありません";
+    } else if (!canStartOperand()) {
+      tooltip.textContent = "先に演算子を入力してから貼り付けてください";
     } else {
+      if (justCalculated) tokens = [];
       displayValue = pastedValue;
       waitingForOperand = false;
       justCalculated = false;
+      updateExpressionDisplay();
       updateDisplay();
       tooltip.textContent = `貼り付けました：${pastedValue}`;
     }
@@ -486,6 +678,8 @@ document.addEventListener("keydown", (event) => {
   let selector;
   if (/^[0-9]$/.test(key)) { inputDigit(key); selector = `[data-number="${key}"]`; }
   else if (["+", "-", "*", "/"].includes(key)) { chooseOperator(key); selector = `[data-operator="${key}"]`; }
+  else if (key === "(") { openParen(); selector = '[data-paren="("]'; }
+  else if (key === ")") { closeParen(); selector = '[data-paren=")"]'; }
   else if (key === "." || key === ",") { inputDecimal(); selector = '[data-action="decimal"]'; }
   else if (key === "Enter" || key === "=") { equals(); selector = '[data-action="equals"]'; }
   else if (key === "Backspace") { backspace(); selector = '[data-action="backspace"]'; }

@@ -206,6 +206,7 @@ button { font: inherit; color: inherit; }
 .keypad .number { background: rgb(255 255 255 / 88%); font-size: 20px; font-weight: 600; }
 .keypad .number:hover { background: #e0f0ff; }
 .keypad .operator { background: #dceeff; color: #075caa; font-size: 24px; }
+.keypad .paren { grid-column: span 2; background: #eaf4ff; color: #0865b5; font-size: 20px; font-weight: 600; }
 .keypad .equals { background: linear-gradient(135deg, #1789dc, #0865b5); color: #fff; font-size: 24px; box-shadow: 0 4px 10px rgb(0 103 192 / 24%); }
 .keypad .equals:hover { background: linear-gradient(135deg, #0879ce, #034f96); }
 
