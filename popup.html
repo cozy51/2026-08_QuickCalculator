@@ -26,14 +26,16 @@
       </section>
 
       <div class="memory" aria-label="メモリ機能">
-        <button data-memory="clear" data-tooltip="Memory Clear：メモリに保存している数値を消します" aria-disabled="true">MC</button>
-        <button data-memory="recall" data-tooltip="Memory Recall：メモリに保存している数値を表示欄へ呼び出します" aria-disabled="true">MR</button>
-        <button data-memory="add" data-tooltip="Memory Add：現在表示している数値をメモリの数値に足します">M+</button>
-        <button data-memory="subtract" data-tooltip="Memory Subtract：現在表示している数値をメモリの数値から引きます">M−</button>
-        <button data-memory="store" data-tooltip="Memory Store：現在表示している数値をメモリに保存します">MS</button>
-        <button data-memory="list" data-tooltip="Memory List：メモリに保存している数値を確認します" aria-disabled="true">M▼</button>
+        <button data-memory="clear" data-tooltip="Memory Clear：選択中のメモリを削除します" aria-disabled="true">MC</button>
+        <button data-memory="recall" data-tooltip="Memory Recall：選択中のメモリの数値を表示欄へ呼び出します" aria-disabled="true">MR</button>
+        <button data-memory="add" data-tooltip="Memory Add：現在表示している数値を選択中のメモリに足します">M+</button>
+        <button data-memory="subtract" data-tooltip="Memory Subtract：現在表示している数値を選択中のメモリから引きます">M−</button>
+        <button data-memory="store" data-tooltip="Memory Store：現在表示している数値を新しいメモリとして保存します（最大10件、超えると古いものから消えます）">MS</button>
+        <button data-memory="list" data-tooltip="Memory List：保存したメモリの一覧から選択できます" aria-disabled="true">M▼</button>
       </div>
-      <div id="memory-panel" class="memory-panel" aria-live="polite" hidden></div>
+      <div id="memory-panel" class="memory-panel" aria-live="polite" hidden>
+        <select id="memory-select" aria-label="保存したメモリの一覧（新しい順）"></select>
+      </div>
 
       <section class="keypad" aria-label="電卓のキー">
         <button class="paren" data-paren="(" data-tooltip="かっこを開きます。計算の優先順位を変更できます">(</button>
