@@ -357,7 +357,12 @@ function equals() {
   tokens = [];
   waitingForOperand = true;
   justCalculated = true;
-  if (Number.isFinite(result)) lastAnswer = result;
+  if (Number.isFinite(result)) {
+    lastAnswer = result;
+    addMemoryEntry(result, Date.now());
+    renderMemoryList();
+    updateMemoryButtons();
+  }
   updateConstantButtons();
   updateDisplay();
 }
