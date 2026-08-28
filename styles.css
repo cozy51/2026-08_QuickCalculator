@@ -180,16 +180,34 @@ button { font: inherit; color: inherit; }
   box-shadow: 0 4px 14px rgb(0 0 0 / 18%);
 }
 
-#memory-select {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid #b9d7f2;
+.memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.memory-entry {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
   border-radius: 4px;
   background: #fff;
+  cursor: pointer;
+  text-align: left;
   font-size: 15px;
   font-weight: 600;
   color: #0b3d63;
 }
+
+.memory-entry:hover { background: #eaf4ff; }
+.memory-entry:focus-visible { outline: 2px solid #0067c0; outline-offset: -2px; }
+.memory-entry[aria-selected="true"] { background: #d5ebff; border-color: #7fb8e8; }
+.memory-entry .memory-entry-time { font-size: 12px; font-weight: 400; color: #5a7a94; white-space: nowrap; }
 
 .keypad {
   display: grid;

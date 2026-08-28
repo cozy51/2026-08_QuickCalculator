@@ -4,7 +4,7 @@ const resultDisplay = document.querySelector("#result");
 const expressionDisplay = document.querySelector("#expression");
 const tooltip = document.querySelector("#tooltip");
 const memoryPanel = document.querySelector("#memory-panel");
-const memorySelect = document.querySelector("#memory-select");
+const memoryList = document.querySelector("#memory-list");
 const memoryButtons = document.querySelectorAll("[data-memory]");
 const magnitudeDisplay = document.querySelector("#magnitude");
 const pasteButton = document.querySelector("#paste");
@@ -454,17 +454,27 @@ function formatMemoryTime(time) {
   return new Date(time).toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
-function renderMemorySelect() {
-  const optionsNewestFirst = memoryEntries
+function renderMemoryList() {
+  const entriesNewestFirst = memoryEntries
     .map((entry, index) => ({ entry, index }))
     .reverse();
-  memorySelect.replaceChildren(
-    ...optionsNewestFirst.map(({ entry, index }) => {
-      const option = document.createElement("option");
-      option.value = String(index);
-      option.textContent = `${formatNumber(entry.value)}（${formatMemoryTime(entry.time)}）`;
-      option.selected = index === selectedMemoryIndex;
-      return option;
+  memoryList.replaceChildren(
+    ...entriesNewestFirst.map(({ entry, index }) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "memory-entry";
+      row.dataset.index = String(index);
+      row.setAttribute("role", "option");
+      row.setAttribute("aria-selected", (index === selectedMemoryIndex).toString());
+
+      const value = document.createElement("span");
+      value.textContent = formatNumber(entry.value);
+      const time = document.createElement("span");
+      time.className = "memory-entry-time";
+      time.textContent = formatMemoryTime(entry.time);
+
+      row.append(value, time);
+      return row;
     })
   );
 }
@@ -509,12 +519,15 @@ function useMemory(action) {
   }
   if (action === "list") memoryPanel.hidden = !memoryPanel.hidden;
   else if (memoryEntries.length === 0) memoryPanel.hidden = true;
-  renderMemorySelect();
+  renderMemoryList();
   updateMemoryButtons();
 }
 
-memorySelect.addEventListener("change", () => {
-  selectedMemoryIndex = Number(memorySelect.value);
+memoryList.addEventListener("click", (event) => {
+  const row = event.target.closest("[data-index]");
+  if (!row) return;
+  selectedMemoryIndex = Number(row.dataset.index);
+  renderMemoryList();
   updateMemoryButtons();
 });
 
