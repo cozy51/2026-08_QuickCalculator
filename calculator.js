@@ -9,6 +9,7 @@ const memoryButtons = document.querySelectorAll("[data-memory]");
 const magnitudeDisplay = document.querySelector("#magnitude");
 const pasteButton = document.querySelector("#paste");
 const millionUnitButton = document.querySelector("#million-unit");
+const ansButton = document.querySelector('[data-const="ans"]');
 
 let displayValue = "0";
 let tokens = []; // committed expression tokens (numbers, "+","-","*","/","(",")") before the value currently being typed
@@ -16,6 +17,7 @@ let waitingForOperand = false;
 let justCalculated = false;
 let memoryEntries = []; // { value: number, time: number } oldest first, newest last
 let selectedMemoryIndex = -1;
+let lastAnswer = null;
 let millionUnit = false;
 let audioContext = null;
 const MEMORY_LIMIT = 10;
@@ -204,6 +206,7 @@ function saveState() {
     justCalculated,
     memoryEntries,
     selectedMemoryIndex,
+    lastAnswer,
     millionUnit,
     expression: expressionDisplay.textContent
   };
@@ -230,6 +233,7 @@ function restoreState() {
       && state.selectedMemoryIndex < memoryEntries.length
       ? state.selectedMemoryIndex
       : (memoryEntries.length ? memoryEntries.length - 1 : -1);
+    lastAnswer = typeof state.lastAnswer === "number" ? state.lastAnswer : null;
     millionUnit = Boolean(state.millionUnit);
     expressionDisplay.textContent = state.expression || " ";
   } catch {
@@ -353,7 +357,33 @@ function equals() {
   tokens = [];
   waitingForOperand = true;
   justCalculated = true;
+  if (Number.isFinite(result)) lastAnswer = result;
+  updateConstantButtons();
   updateDisplay();
+}
+
+function insertConstant(value) {
+  resetOnError();
+  if (!canStartOperand()) return;
+  if (justCalculated) tokens = [];
+  displayValue = formatNumber(value);
+  waitingForOperand = false;
+  justCalculated = false;
+  updateExpressionDisplay();
+  updateDisplay();
+}
+
+function usePi() {
+  insertConstant(Math.PI);
+}
+
+function useAns() {
+  if (lastAnswer === null) return;
+  insertConstant(lastAnswer);
+}
+
+function updateConstantButtons() {
+  ansButton.setAttribute("aria-disabled", (lastAnswer === null).toString());
 }
 
 function clearAll() {
@@ -431,10 +461,12 @@ function toggleParen(symbol) {
 
 document.querySelector(".keypad").addEventListener("click", (event) => {
   const button = event.target.closest("button");
-  if (!button) return;
+  if (!button || button.getAttribute("aria-disabled") === "true") return;
   if (button.dataset.number) inputDigit(button.dataset.number);
   else if (button.dataset.operator) chooseOperator(button.dataset.operator);
   else if (button.dataset.paren) toggleParen(button.dataset.paren);
+  else if (button.dataset.const === "pi") usePi();
+  else if (button.dataset.const === "ans") useAns();
   else runAction(button.dataset.action);
   if (button.dataset.tooltip) showTooltip(button);
 });
@@ -625,6 +657,16 @@ function tooltipText(target) {
     return `${explanation}\n押した後：${preview} …`;
   }
 
+  if (target.dataset.const === "pi") {
+    return `${explanation}\n押した後の表示：${formatNumber(Math.PI)}`;
+  }
+
+  if (target.dataset.const === "ans") {
+    return lastAnswer === null
+      ? `${explanation}\n直前の計算結果がありません`
+      : `${explanation}\n押した後の表示：${formatNumber(lastAnswer)}`;
+  }
+
   return `${explanation}\n押した後の表示：${previewAction(target.dataset.action)}`;
 }
 
@@ -775,3 +817,4 @@ document.addEventListener("keydown", (event) => {
 restoreState();
 updateDisplay();
 updateMemoryButtons();
+updateConstantButtons();
